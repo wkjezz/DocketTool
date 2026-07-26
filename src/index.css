@@ -94,6 +94,39 @@ body {
   line-height: 1.75;
 }
 
+.hero-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.auth-panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.auth-user {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cfe0ff;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.auth-error {
+  margin: 12px 0 0;
+  color: #ffb3b8;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
 .action-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -550,6 +583,22 @@ body {
   font-size: 0.94rem;
 }
 
+.guest-link-output {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.guest-link-output .text-input {
+  font-size: 0.9rem;
+}
+
+.guest-detail-section {
+  margin-top: 0;
+}
+
 .clerk-filing-output {
   margin-top: 18px;
   display: grid;
@@ -843,11 +892,25 @@ body {
   }
 
   .hero {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .hero-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
+  .auth-panel {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .guest-link-output {
     grid-template-columns: 1fr;
   }
 

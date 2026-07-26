@@ -22,6 +22,10 @@ export default function DocketReview({
   isDefence,
   isAuthorized,
   discordAuthError,
+  guestLink,
+  generateGuestLink,
+  copyGuestLink,
+  guestLinkCopied,
 }) {
   return (
     <section id="docket-list" className="docket-list-section">
@@ -79,7 +83,28 @@ export default function DocketReview({
                 Generate Clerk Filing
               </button>
             )}
+            <button type="button" className="secondary-button" onClick={generateGuestLink} disabled={!isAuthorized}>
+              Generate Guest Link
+            </button>
           </div>
+          {guestLink ? (
+            <div className="guest-link-output">
+              <input
+                type="text"
+                readOnly
+                value={guestLink}
+                className="text-input"
+                aria-label="Guest link"
+              />
+              <button
+                type="button"
+                className={`secondary-button copy-button ${guestLinkCopied ? 'copied' : ''}`}
+                onClick={copyGuestLink}
+              >
+                {guestLinkCopied ? 'Copied!' : 'Copy Guest Link'}
+              </button>
+            </div>
+          ) : null}
           {discordAuthError ? <p className="auth-error">{discordAuthError}</p> : null}
           {(!clerkFilingEnabled && selectedDocket.evidence.length > 0) ? (
             <div className="clerk-filing-hint">Enable Clerk Filing to select evidence for email filing output.</div>

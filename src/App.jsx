@@ -8,8 +8,91 @@ import { isDiscordUserAuthorized, normalizeDiscordId } from './auth';
 const STORAGE_KEY = 'docket-tool:dockets';
 const evidenceTypes = ['Document', 'Picture', 'Witness List', 'Other'];
 const caseTypes = ['Criminal', 'Civil'];
+const GUEST_LINK_TTL_MS = 6 * 60 * 60 * 1000;
 
 const defaultPartyForCaseType = (caseType) => (caseType === 'Civil' ? 'Plaintiff' : 'Prosecution');
+
+function encodeGuestPayload(payload) {
+  try {
+    const json = JSON.stringify(payload);
+    const binary = encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (_, hex) =>
+      String.fromCharCode(Number.parseInt(hex, 16))
+    );
+    return btoa(binary);
+  } catch (error) {
+    return '';
+  }
+}
+
+function decodeGuestPayload(token) {
+  try {
+    const binary = atob(token);
+    const encoded = Array.from(binary)
+      .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
+      .join('');
+    return JSON.parse(decodeURIComponent(encoded));
+  } catch (error) {
+    return null;
+  }
+}
+
+function buildGuestDocket(docket) {
+  return {
+    title: docket.title,
+    caseType: docket.caseType || 'Criminal',
+    createdAt: docket.createdAt || null,
+    evidence: docket.evidence.map((item) => {
+      if (item.type === 'Witness List') {
+        return {
+          id: item.id,
+          type: 'Witness List',
+          party: item.party,
+          witnesses: (item.witnesses || []).map((witness) => ({
+            name: witness.name || '',
+            cid: witness.cid || '',
+            phone: witness.phone || '',
+            email: witness.email || '',
+          })),
+        };
+      }
+
+      return {
+        id: item.id,
+        type: item.type,
+        party: item.party,
+        number: item.number || '',
+        title: item.title || '',
+        link: item.link || '',
+      };
+    }),
+  };
+}
+
+function readGuestDocketFromUrl() {
+  if (typeof window === 'undefined') return null;
+
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('guest');
+  if (!token) return null;
+
+  const payload = decodeGuestPayload(token);
+  if (!payload || typeof payload !== 'object') return null;
+  if (!payload.docket || !Array.isArray(payload.docket.evidence) || !payload.docket.title) return null;
+
+  if (typeof payload.expiresAt === 'number' && Date.now() > payload.expiresAt) {
+    return {
+      expired: true,
+      expiresAt: payload.expiresAt,
+      docket: null,
+    };
+  }
+
+  return {
+    expired: false,
+    expiresAt: payload.expiresAt,
+    docket: payload.docket,
+  };
+}
 
 function emptyDraft() {
   return {
@@ -47,10 +130,13 @@ function App() {
   const [selectedEvidenceIds, setSelectedEvidenceIds] = useState([]);
   const [clerkFilingText, setClerkFilingText] = useState('');
   const [copyButtonText, setCopyButtonText] = useState('Copy to Clipboard');
+  const [guestLink, setGuestLink] = useState('');
+  const [guestLinkCopied, setGuestLinkCopied] = useState(false);
   const [discordUserId, setDiscordUserId] = useState('');
   const [discordUserName, setDiscordUserName] = useState('');
   const [discordAuthError, setDiscordAuthError] = useState('');
   const [discordAuthLoading, setDiscordAuthLoading] = useState(false);
+  const [guestView] = useState(() => readGuestDocketFromUrl());
   const isAuthorized = isDiscordUserAuthorized(discordUserId);
   const discordClientId = import.meta.env.VITE_DISCORD_CLIENT_ID || '';
 
@@ -484,15 +570,18 @@ function App() {
       setSelectedEvidenceIds([]);
       setClerkFilingText('');
       setClerkFilingEnabled(false);
+      setGuestLink('');
+      setGuestLinkCopied(false);
       return;
     }
 
     if (!clerkFilingEnabled) {
       setSelectedEvidenceIds([]);
       setClerkFilingText('');
-      return;
     }
 
+    setGuestLink('');
+    setGuestLinkCopied(false);
     setSelectedEvidenceIds([]);
     setClerkFilingText('');
   }, [selectedDocket, clerkFilingEnabled]);
@@ -559,6 +648,45 @@ function App() {
     }
   };
 
+  const generateGuestLink = () => {
+    if (!isAuthorized) {
+      setDiscordAuthError('You must be signed in with the permitted Discord account to create guest links.');
+      return;
+    }
+    if (!selectedDocket) return;
+
+    const expiresAt = Date.now() + GUEST_LINK_TTL_MS;
+    const payload = {
+      version: 1,
+      expiresAt,
+      docket: buildGuestDocket(selectedDocket),
+    };
+    const token = encodeGuestPayload(payload);
+    if (!token) {
+      setDiscordAuthError('Unable to create guest link.');
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set('guest', token);
+
+    setGuestLink(url.toString());
+    setGuestLinkCopied(false);
+  };
+
+  const copyGuestLink = async () => {
+    if (!guestLink) return;
+    try {
+      await navigator.clipboard.writeText(guestLink);
+      setGuestLinkCopied(true);
+      window.setTimeout(() => setGuestLinkCopied(false), 2000);
+    } catch (error) {
+      console.error('Guest link copy failed', error);
+    }
+  };
+
   const openLinkPreview = (link) => {
     if (!link) return;
     const previewUrl = createPreviewUrl(link);
@@ -576,6 +704,83 @@ function App() {
   const previewUrl = createPreviewUrl(evidenceForm.link);
   const prosecutionEvidence = draft.evidence.filter((item) => isPlaintiffProsecution(item.party));
   const defendantEvidence = draft.evidence.filter((item) => isDefence(item.party));
+
+  if (guestView) {
+    return (
+      <div className="app-shell">
+        <div className="glass-panel">
+          <section className="docket-detail-section guest-detail-section">
+            {guestView.expired || !guestView.docket ? (
+              <div className="empty-state">
+                This guest link has expired. Please request a fresh link from the case owner.
+              </div>
+            ) : (
+              <>
+                <div className="section-heading">
+                  <h2>{guestView.docket.title}</h2>
+                  <span>{guestView.docket.evidence.length} evidence items</span>
+                </div>
+                <div className="docket-detail-meta">
+                  <span>{guestView.docket.caseType || 'Criminal'} case</span>
+                  {guestView.docket.createdAt ? (
+                    <span>{new Date(guestView.docket.createdAt).toLocaleDateString()}</span>
+                  ) : null}
+                  {guestView.expiresAt ? (
+                    <span>Access expires: {new Date(guestView.expiresAt).toLocaleString()}</span>
+                  ) : null}
+                </div>
+                <p className="clerk-filing-hint">Read-only guest view with access to this case only.</p>
+
+                <div className="selected-evidence-list">
+                  {guestView.docket.evidence.map((item) => (
+                    <div key={item.id} className="selected-evidence-row">
+                      <div className="selected-evidence-header">
+                        <span className="evidence-type">{item.type}</span>
+                        <span className="evidence-party">{getCasePartyName(item.party, guestView.docket.caseType || 'Criminal')}</span>
+                      </div>
+                      {item.type === 'Witness List' ? (
+                        <div className="witness-list">
+                          <strong>Witnesses</strong>
+                          <ul>
+                            {(item.witnesses || []).map((witness, idx) => (
+                              <li key={`${item.id}-${idx}`}>
+                                <div className="witness-item-name">{witness.name}</div>
+                                <div className="witness-item-meta">
+                                  {witness.cid && <span>CID: {witness.cid}</span>}
+                                  {witness.phone && <span>Phone: {formatPhoneNumber(witness.phone)}</span>}
+                                  {witness.email && <span>Email: {witness.email}</span>}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="selected-evidence-title">{item.number} · {item.title}</p>
+                          {item.link ? (
+                            <div className="selected-evidence-link-row">
+                              <a
+                                className="text-button open-new-tab-button"
+                                href={item.link}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                              >
+                                Open evidence link
+                              </a>
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -652,6 +857,10 @@ function App() {
             isDefence={isDefence}
             isAuthorized={isAuthorized}
             discordAuthError={discordAuthError}
+            guestLink={guestLink}
+            generateGuestLink={generateGuestLink}
+            copyGuestLink={copyGuestLink}
+            guestLinkCopied={guestLinkCopied}
           />
         )}
 

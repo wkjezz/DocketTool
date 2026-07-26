@@ -16,8 +16,24 @@ export default function HeroPanel({
   return (
     <div className="hero">
       <div className="hero-copy">
-        <p className="department-label">Department of Justice</p>
-        <h1>Docket Tool</h1>
+        <div className="hero-header">
+          <div>
+            <p className="department-label">Department of Justice</p>
+            <h1>Docket Tool</h1>
+          </div>
+          <div className="auth-panel">
+            {isAuthorized && discordUserName ? <span className="auth-user">{discordUserName}</span> : null}
+            {isAuthorized ? (
+              <button type="button" className="secondary-button" onClick={handleDiscordLogout}>
+                Sign Out
+              </button>
+            ) : (
+              <button type="button" className="primary-button" onClick={handleDiscordLogin} disabled={discordAuthLoading}>
+                {discordAuthLoading ? 'Connecting...' : 'Sign In with Discord'}
+              </button>
+            )}
+          </div>
+        </div>
         <div className="action-buttons">
           <button className={`primary-button ${showForm ? 'active' : ''}`} onClick={startNewDocket}>
             Add Docket
@@ -26,18 +42,7 @@ export default function HeroPanel({
             Review Existing
           </button>
         </div>
-        <div className="auth-panel">
-          {discordAuthError ? <p className="auth-error">{discordAuthError}</p> : null}
-          {isAuthorized ? (
-            <button type="button" className="secondary-button" onClick={handleDiscordLogout}>
-              Sign Out
-            </button>
-          ) : (
-            <button type="button" className="primary-button" onClick={handleDiscordLogin} disabled={discordAuthLoading}>
-              {discordAuthLoading ? 'Connecting...' : 'Sign In with Discord'}
-            </button>
-          )}
-        </div>
+        {discordAuthError ? <p className="auth-error">{discordAuthError}</p> : null}
       </div>
       <div className="hero-image-container">
         <img src={SadojImage} alt="Sadoj" className="hero-image" />
