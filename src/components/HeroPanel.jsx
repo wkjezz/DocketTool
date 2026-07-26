@@ -14,6 +14,7 @@ export default function HeroPanel({
   handleDiscordLogout,
 }) {
   const maskedDiscordId = discordUserId ? `ID ${discordUserId.slice(-4).padStart(4, '*')}` : '';
+  const displayName = isAuthorized ? 'Colin Burns' : discordUserName;
 
   return (
     <div className="hero">
@@ -35,7 +36,7 @@ export default function HeroPanel({
       </div>
       <div className="hero-utility">
         <div className="auth-panel discreet-auth">
-          {isAuthorized && discordUserName ? <span className="auth-user">{discordUserName}</span> : null}
+          {isAuthorized && displayName ? <span className="auth-user">{displayName}</span> : null}
           {isAuthorized && maskedDiscordId ? <span className="auth-id">{maskedDiscordId}</span> : null}
           {isAuthorized ? (
             <button type="button" className="auth-link-button" onClick={handleDiscordLogout}>
