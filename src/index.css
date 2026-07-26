@@ -130,15 +130,29 @@ body {
   letter-spacing: 0.02em;
 }
 
-.auth-button {
-  padding: 5px 9px;
-  border-radius: 8px;
-  font-size: 0.72rem;
+.auth-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #d4e3ff;
+  font-size: 0.74rem;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: none;
-  min-height: 28px;
+  line-height: 1.1;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(212, 227, 255, 0.38);
+  text-underline-offset: 2px;
+}
+
+.auth-link-button:hover:not(:disabled) {
+  color: #f0f6ff;
+  text-decoration-color: rgba(240, 246, 255, 0.8);
+}
+
+.auth-link-button:disabled {
+  color: #93a8cb;
+  cursor: default;
+  text-decoration-color: rgba(147, 168, 203, 0.35);
 }
 
 .auth-error {

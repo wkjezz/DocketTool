@@ -38,12 +38,12 @@ export default function HeroPanel({
           {isAuthorized && discordUserName ? <span className="auth-user">{discordUserName}</span> : null}
           {isAuthorized && maskedDiscordId ? <span className="auth-id">{maskedDiscordId}</span> : null}
           {isAuthorized ? (
-            <button type="button" className="secondary-button auth-button" onClick={handleDiscordLogout}>
+            <button type="button" className="auth-link-button" onClick={handleDiscordLogout}>
               Sign Out
             </button>
           ) : (
-            <button type="button" className="secondary-button auth-button" onClick={handleDiscordLogin} disabled={discordAuthLoading}>
-              {discordAuthLoading ? 'Connecting...' : 'Sign In'}
+            <button type="button" className="auth-link-button" onClick={handleDiscordLogin} disabled={discordAuthLoading}>
+              {discordAuthLoading ? 'Connecting...' : 'Log In'}
             </button>
           )}
         </div>
