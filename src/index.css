@@ -123,13 +123,6 @@ body {
   line-height: 1.2;
 }
 
-.auth-id {
-  color: #839dca;
-  font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-}
-
 .auth-link-button {
   appearance: none;
   -webkit-appearance: none;
