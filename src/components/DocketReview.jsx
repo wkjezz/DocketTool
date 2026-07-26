@@ -20,6 +20,8 @@ export default function DocketReview({
   openLinkInNewTab,
   isPlaintiffProsecution,
   isDefence,
+  isAuthorized,
+  discordAuthError,
 }) {
   return (
     <section id="docket-list" className="docket-list-section">
@@ -42,6 +44,7 @@ export default function DocketReview({
               onDelete={handleDeleteDocket}
               isPlaintiffProsecution={isPlaintiffProsecution}
               isDefence={isDefence}
+              isAuthorized={isAuthorized}
             />
           ))
         )}
@@ -67,15 +70,17 @@ export default function DocketReview({
                 type="checkbox"
                 checked={clerkFilingEnabled}
                 onChange={() => setClerkFilingEnabled((enabled) => !enabled)}
+                disabled={!isAuthorized}
               />
               Enable Clerk Filing
             </label>
             {clerkFilingEnabled && (
-              <button type="button" className="primary-button" onClick={generateClerkFiling}>
+              <button type="button" className="primary-button" onClick={generateClerkFiling} disabled={!isAuthorized}>
                 Generate Clerk Filing
               </button>
             )}
           </div>
+          {discordAuthError ? <p className="auth-error">{discordAuthError}</p> : null}
           {(!clerkFilingEnabled && selectedDocket.evidence.length > 0) ? (
             <div className="clerk-filing-hint">Enable Clerk Filing to select evidence for email filing output.</div>
           ) : null}
@@ -90,6 +95,7 @@ export default function DocketReview({
                         type="checkbox"
                         checked={selectedEvidenceIds.includes(item.id)}
                         onChange={() => toggleEvidenceSelection(item.id)}
+                        disabled={!isAuthorized}
                       />
                       Select
                     </label>

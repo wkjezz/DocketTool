@@ -6,6 +6,7 @@ export default function DocketCard({
   onDelete,
   isPlaintiffProsecution,
   isDefence,
+  isAuthorized,
 }) {
   return (
     <article
@@ -27,10 +28,10 @@ export default function DocketCard({
         </div>
       </div>
       <div className="docket-actions">
-        <button className="edit-button" onClick={(event) => { event.stopPropagation(); onEdit(docket); }}>
+        <button className="edit-button" onClick={(event) => { event.stopPropagation(); onEdit(docket); }} disabled={!isAuthorized}>
           Edit
         </button>
-        <button className="delete-button" onClick={(event) => { event.stopPropagation(); onDelete(docket.id); }}>
+        <button className="delete-button" onClick={(event) => { event.stopPropagation(); onDelete(docket.id); }} disabled={!isAuthorized}>
           Delete
         </button>
       </div>

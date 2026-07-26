@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Discord Auth</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background: #111827;
+        color: #f9fafb;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      const fragment = new URLSearchParams(window.location.hash.slice(1));
+      const accessToken = fragment.get('access_token');
+
+      if (!accessToken) {
+        window.opener?.postMessage({ type: 'discord-auth-error', error: 'Discord sign-in was cancelled.' }, window.location.origin);
+        window.close();
+      } else {
+        fetch('https://discord.com/api/users/@me', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+          .then((response) => {
+            if (!response.ok) throw new Error('Unable to load Discord profile.');
+            return response.json();
+          })
+          .then((user) => {
+            window.opener?.postMessage({ type: 'discord-auth-success', accessToken, user }, window.location.origin);
+          })
+          .catch(() => {
+            window.opener?.postMessage({ type: 'discord-auth-error', error: 'Discord sign-in failed.' }, window.location.origin);
+          })
+          .finally(() => {
+            window.close();
+          });
+      }
+    </script>
+  </body>
+</html>

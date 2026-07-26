@@ -3,6 +3,7 @@ import OverlayPreview from './OverlayPreview';
 import HeroPanel from './components/HeroPanel';
 import DocketEditor from './components/DocketEditor';
 import DocketReview from './components/DocketReview';
+import { isDiscordUserAuthorized, normalizeDiscordId } from './auth';
 
 const STORAGE_KEY = 'docket-tool:dockets';
 const evidenceTypes = ['Document', 'Picture', 'Witness List', 'Other'];
@@ -46,6 +47,12 @@ function App() {
   const [selectedEvidenceIds, setSelectedEvidenceIds] = useState([]);
   const [clerkFilingText, setClerkFilingText] = useState('');
   const [copyButtonText, setCopyButtonText] = useState('Copy to Clipboard');
+  const [discordUserId, setDiscordUserId] = useState('');
+  const [discordUserName, setDiscordUserName] = useState('');
+  const [discordAuthError, setDiscordAuthError] = useState('');
+  const [discordAuthLoading, setDiscordAuthLoading] = useState(false);
+  const isAuthorized = isDiscordUserAuthorized(discordUserId);
+  const discordClientId = import.meta.env.VITE_DISCORD_CLIENT_ID || '';
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -60,7 +67,126 @@ function App() {
 
   const docketCount = useMemo(() => dockets.length, [dockets]);
 
+  useEffect(() => {
+    const storedUserId = normalizeDiscordId(localStorage.getItem('discord-user-id') || '');
+    const storedToken = localStorage.getItem('discord-access-token') || '';
+    const storedUserName = normalizeDiscordId(localStorage.getItem('discord-user-name') || '');
+
+    if (storedUserId) {
+      setDiscordUserId(storedUserId);
+      if (storedUserName) {
+        setDiscordUserName(storedUserName);
+      }
+    }
+
+    if (storedToken && storedUserId) {
+      setDiscordAuthLoading(true);
+      fetch('https://discord.com/api/users/@me', {
+        headers: {
+          Authorization: `Bearer ${storedToken}`,
+        },
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error('Unable to validate Discord session.');
+          return response.json();
+        })
+        .then((user) => {
+          setDiscordUserId(normalizeDiscordId(user.id));
+          setDiscordUserName(normalizeDiscordId(user.username || 'Discord user'));
+          localStorage.setItem('discord-user-id', normalizeDiscordId(user.id));
+          localStorage.setItem('discord-user-name', normalizeDiscordId(user.username || 'Discord user'));
+          setDiscordAuthError('');
+        })
+        .catch(() => {
+          localStorage.removeItem('discord-access-token');
+          localStorage.removeItem('discord-user-id');
+          localStorage.removeItem('discord-user-name');
+          setDiscordUserId('');
+          setDiscordUserName('');
+          setDiscordAuthError('Please sign in with Discord to enable editing and clerk filing.');
+        })
+        .finally(() => setDiscordAuthLoading(false));
+      return;
+    }
+
+    setDiscordAuthError('Please sign in with Discord to enable editing and clerk filing.');
+  }, []);
+
+  useEffect(() => {
+    const handleDiscordMessage = (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'discord-auth-success') {
+        const user = event.data.user;
+        const accessToken = event.data.accessToken;
+        if (!user?.id || !accessToken) {
+          setDiscordAuthError('Discord authentication failed.');
+          setDiscordAuthLoading(false);
+          return;
+        }
+
+        const nextUserId = normalizeDiscordId(user.id);
+        const nextUserName = normalizeDiscordId(user.username || 'Discord user');
+        setDiscordUserId(nextUserId);
+        setDiscordUserName(nextUserName);
+        localStorage.setItem('discord-user-id', nextUserId);
+        localStorage.setItem('discord-user-name', nextUserName);
+        localStorage.setItem('discord-access-token', accessToken);
+        setDiscordAuthError('');
+        setDiscordAuthLoading(false);
+      }
+
+      if (event.data?.type === 'discord-auth-error') {
+        setDiscordAuthError(event.data.error || 'Discord authentication failed.');
+        setDiscordAuthLoading(false);
+      }
+    };
+
+    window.addEventListener('message', handleDiscordMessage);
+    return () => window.removeEventListener('message', handleDiscordMessage);
+  }, []);
+
+  const handleDiscordLogin = () => {
+    if (!discordClientId) {
+      setDiscordAuthError('Discord OAuth is not configured. Set the VITE_DISCORD_CLIENT_ID environment variable.');
+      return;
+    }
+
+    setDiscordAuthLoading(true);
+    setDiscordAuthError('');
+
+    const redirectUri = `${window.location.origin}/discord-callback.html`;
+    const authUrl = new URL('https://discord.com/api/oauth2/authorize');
+    authUrl.searchParams.set('client_id', discordClientId);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('response_type', 'token');
+    authUrl.searchParams.set('scope', 'identify');
+
+    const popup = window.open(authUrl.toString(), 'discord-auth', 'width=500,height=700');
+    if (!popup) {
+      setDiscordAuthError('Popup blocked. Please allow popups for this site and try again.');
+      setDiscordAuthLoading(false);
+    }
+  };
+
+  const handleDiscordLogout = () => {
+    localStorage.removeItem('discord-access-token');
+    localStorage.removeItem('discord-user-id');
+    localStorage.removeItem('discord-user-name');
+    setDiscordUserId('');
+    setDiscordUserName('');
+    setDiscordAuthError('Please sign in with Discord to enable editing and clerk filing.');
+    setShowForm(false);
+    setShowReview(true);
+    setClerkFilingEnabled(false);
+    setSelectedEvidenceIds([]);
+    setClerkFilingText('');
+  };
+
   const startNewDocket = () => {
+    if (!isAuthorized) {
+      setDiscordAuthError('You must be signed in with the permitted Discord account to add a docket.');
+      return;
+    }
     setShowForm(true);
     setShowReview(false);
     setEditingId(null);
@@ -179,6 +305,10 @@ function App() {
 
   const handleEvidenceSubmit = (event) => {
     event.preventDefault();
+    if (!isAuthorized) {
+      setDiscordAuthError('You must be signed in with the permitted Discord account to edit evidence.');
+      return;
+    }
     if (evidenceForm.type === 'Witness List') {
       const witnesses = evidenceForm.witnesses
         .map((witness) => ({
@@ -262,6 +392,10 @@ function App() {
 
   const handleSaveDocket = (event) => {
     event.preventDefault();
+    if (!isAuthorized) {
+      setDiscordAuthError('You must be signed in with the permitted Discord account to save a docket.');
+      return;
+    }
     if (!draft.title.trim() || draft.evidence.length === 0) return;
 
     const savedDocket = editingId
@@ -282,6 +416,10 @@ function App() {
   };
 
   const handleDeleteDocket = (docketId) => {
+    if (!isAuthorized) {
+      setDiscordAuthError('You must be signed in with the permitted Discord account to delete a docket.');
+      return;
+    }
     setDockets((prev) => prev.filter((docket) => docket.id !== docketId));
     if (selectedDocketId === docketId) {
       setSelectedDocketId(null);
@@ -292,6 +430,10 @@ function App() {
   };
 
   const handleEditDocket = (docket) => {
+    if (!isAuthorized) {
+      setDiscordAuthError('You must be signed in with the permitted Discord account to edit a docket.');
+      return;
+    }
     setShowForm(true);
     setShowReview(false);
     setEditingId(docket.id);
@@ -397,6 +539,10 @@ function App() {
   };
 
   const generateClerkFiling = () => {
+    if (!isAuthorized) {
+      setDiscordAuthError('You must be signed in with the permitted Discord account to generate clerk filings.');
+      return;
+    }
     if (!selectedDocket) return;
     const selectedEvidence = selectedDocket.evidence.filter((item) => selectedEvidenceIds.includes(item.id));
     setClerkFilingText(formatClerkFiling(selectedDocket, selectedEvidence));
@@ -434,7 +580,19 @@ function App() {
   return (
     <div className="app-shell">
       <div className="glass-panel">
-        <HeroPanel showForm={showForm} showReview={showReview} startNewDocket={startNewDocket} handleOpenReview={handleOpenReview} />
+        <HeroPanel
+          showForm={showForm}
+          showReview={showReview}
+          startNewDocket={startNewDocket}
+          handleOpenReview={handleOpenReview}
+          isAuthorized={isAuthorized}
+          discordUserId={discordUserId}
+          discordUserName={discordUserName}
+          discordAuthError={discordAuthError}
+          discordAuthLoading={discordAuthLoading}
+          handleDiscordLogin={handleDiscordLogin}
+          handleDiscordLogout={handleDiscordLogout}
+        />
 
         {showForm && (
           <DocketEditor
@@ -466,6 +624,8 @@ function App() {
             formatPhoneNumber={formatPhoneNumber}
             openLinkPreview={openLinkPreview}
             openLinkInNewTab={openLinkInNewTab}
+            isAuthorized={isAuthorized}
+            discordAuthError={discordAuthError}
           />
         )}
 
@@ -490,6 +650,8 @@ function App() {
             openLinkInNewTab={openLinkInNewTab}
             isPlaintiffProsecution={isPlaintiffProsecution}
             isDefence={isDefence}
+            isAuthorized={isAuthorized}
+            discordAuthError={discordAuthError}
           />
         )}
 

@@ -27,12 +27,15 @@ export default function DocketEditor({
   formatPhoneNumber,
   openLinkPreview,
   openLinkInNewTab,
+  isAuthorized,
+  discordAuthError,
 }) {
   return (
     <section className="docket-panel">
       <div className="docket-header">
         <div>
           <h2>{editingId ? 'Edit Docket' : 'Add New Docket'}</h2>
+          {discordAuthError ? <p className="auth-error">{discordAuthError}</p> : null}
         </div>
         <button className="text-button" onClick={handleCancel}>
           Cancel
@@ -51,6 +54,7 @@ export default function DocketEditor({
                 onChange={handleCaseTitleChange}
                 className="text-input"
                 placeholder="Enter case name"
+                disabled={!isAuthorized}
               />
             </div>
             <div className="field-group">
@@ -61,6 +65,7 @@ export default function DocketEditor({
                 value={draft.caseType || 'Criminal'}
                 onChange={handleCaseTypeChange}
                 className="select-input"
+                disabled={!isAuthorized}
               >
                 {caseTypes.map((type) => (
                   <option key={type} value={type}>
@@ -71,7 +76,7 @@ export default function DocketEditor({
             </div>
           </div>
           <div className="form-buttons">
-            <button type="submit" className="primary-button">
+            <button type="submit" className="primary-button" disabled={!isAuthorized}>
               Continue to Evidence
             </button>
           </div>
@@ -127,52 +132,60 @@ export default function DocketEditor({
                       <label>Name</label>
                       <input
                         type="text"
+                        autoComplete="off"
                         value={witness.name}
                         onChange={(event) => handleWitnessChange(index, 'name', event.target.value)}
                         className="text-input"
                         placeholder={`Witness ${index + 1} name`}
+                        disabled={!isAuthorized}
                       />
                     </div>
                     <div className="witness-field">
                       <label>CID</label>
                       <input
                         type="text"
+                        autoComplete="off"
                         value={witness.cid}
                         onChange={(event) => handleWitnessChange(index, 'cid', event.target.value)}
                         className="text-input"
                         placeholder="CID (optional)"
+                        disabled={!isAuthorized}
                       />
                     </div>
                     <div className="witness-field">
                       <label>Phone</label>
                       <input
                         type="text"
+                        autoComplete="off"
                         value={witness.phone}
                         onChange={(event) => handleWitnessChange(index, 'phone', event.target.value)}
                         className="text-input"
                         placeholder="Phone number (optional)"
+                        disabled={!isAuthorized}
                       />
                     </div>
                     <div className="witness-field">
                       <label>Email</label>
                       <input
                         type="text"
+                        autoComplete="off"
                         value={witness.email}
                         onChange={(event) => handleWitnessChange(index, 'email', event.target.value)}
                         className="text-input"
                         placeholder="Email (optional)"
+                        disabled={!isAuthorized}
                       />
                     </div>
                     <div className="witness-actions">
                       {evidenceForm.witnesses.length > 1 && (
-                        <button type="button" className="text-button remove-button" onClick={() => removeWitnessField(index)}>
+                        <button type="button" className="text-button remove-button" onClick={() => removeWitnessField(index)} disabled={!isAuthorized}>
                           Remove
                         </button>
                       )}
                     </div>
                   </div>
                 ))}
-                <button type="button" className="secondary-button add-witness-button" onClick={addWitnessField}>
+                <button type="button" className="secondary-button add-witness-button" onClick={addWitnessField} disabled={!isAuthorized}>
                   + Add witness
                 </button>
               </div>
@@ -188,6 +201,7 @@ export default function DocketEditor({
                       onChange={handleEvidenceChange}
                       className="text-input"
                       placeholder="Enter evidence number"
+                      disabled={!isAuthorized}
                     />
                   </div>
                   <div className="field-group">
@@ -199,6 +213,7 @@ export default function DocketEditor({
                       onChange={handleEvidenceChange}
                       className="text-input"
                       placeholder="Evidence title"
+                      disabled={!isAuthorized}
                     />
                   </div>
                 </div>
@@ -211,6 +226,7 @@ export default function DocketEditor({
                     onChange={handleEvidenceChange}
                     className="text-input"
                     placeholder="Paste Google or image link"
+                    disabled={!isAuthorized}
                   />
                 </div>
                 {previewUrl && (
@@ -231,7 +247,7 @@ export default function DocketEditor({
             )}
 
             <div className="form-buttons">
-              <button type="submit" className="primary-button">
+              <button type="submit" className="primary-button" disabled={!isAuthorized}>
                 {editingEvidenceId ? 'Update Evidence' : 'Add Evidence'}
               </button>
             </div>
@@ -360,7 +376,7 @@ export default function DocketEditor({
             <button type="button" className="secondary-button" onClick={() => setDraftStep('case')}>
               Back to Case Name
             </button>
-            <button type="button" className="primary-button" onClick={handleSaveDocket}>
+            <button type="button" className="primary-button" onClick={handleSaveDocket} disabled={!isAuthorized}>
               Save Docket
             </button>
           </div>
