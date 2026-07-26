@@ -43,7 +43,7 @@ export default function DocketEditor({
       </div>
 
       {draftStep === 'case' ? (
-        <form className="docket-form" onSubmit={handleCaseSubmit}>
+        <form className="docket-form" onSubmit={handleCaseSubmit} autoComplete="off">
           <div className="field-row">
             <div className="field-group">
               <label htmlFor="title">Case Name</label>
@@ -87,7 +87,7 @@ export default function DocketEditor({
             <strong>Case:</strong> {draft.title}
           </div>
 
-          <form className="docket-form" onSubmit={handleEvidenceSubmit}>
+          <form className="docket-form" onSubmit={handleEvidenceSubmit} autoComplete="off">
             <div className="field-row">
               <div className="field-group">
                 <label htmlFor="evidence-type">Evidence Type</label>
@@ -145,6 +145,12 @@ export default function DocketEditor({
                       <input
                         type="text"
                         autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        data-form-type="other"
                         value={witness.cid}
                         onChange={(event) => handleWitnessChange(index, 'cid', event.target.value)}
                         className="text-input"
@@ -157,6 +163,12 @@ export default function DocketEditor({
                       <input
                         type="text"
                         autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        data-form-type="other"
                         value={witness.phone}
                         onChange={(event) => handleWitnessChange(index, 'phone', event.target.value)}
                         className="text-input"
